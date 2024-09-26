@@ -8,12 +8,7 @@
 <body>
     <h1>役割振り分け</h1>
     <form id="roleForm">
-        <label for="names">名前（改行で分けて入力）</label>
-        <br>
-        <label for="names">ロール決まってる人は名前消してチェックも外して</label>
-        <br>
-        <label for="names">振り分け押したら勝手にコピーされるよ</label>
-        <br>
+        <label for="names">名前（改行で分けて入力してください）:</label>
         <textarea id="names" name="names" rows="5" cols="30" required></textarea>
         <br><br>
         <label><input type="checkbox" id="top" name="role" value="Top" checked> Top</label>
@@ -27,6 +22,14 @@
     <pre id="result"></pre>
 
     <script>
+        document.addEventListener('DOMContentLoaded', (event) => {
+            // ページ読み込み時にローカルストレージから名前を取得
+            const savedNames = localStorage.getItem('names');
+            if (savedNames) {
+                document.getElementById('names').value = savedNames;
+            }
+        });
+
         function assignRole() {
             const names = document.getElementById('names').value.split('\n').filter(name => name.trim() !== '');
             const roles = Array.from(document.querySelectorAll('input[name="role"]:checked')).map(role => role.value);
@@ -65,7 +68,14 @@
             document.getElementById('result').innerText = resultText;
 
             // 出力を自動でコピー
-            navigator.clipboard.writeText(resultText)
+            navigator.clipboard.writeText(resultText).then(() => {
+                alert('出力がクリップボードにコピーされました。');
+            }).catch(err => {
+                console.error('コピーに失敗しました: ', err);
+            });
+
+            // 名前をローカルストレージに保存
+            localStorage.setItem('names', document.getElementById('names').value);
         }
     </script>
 </body>
