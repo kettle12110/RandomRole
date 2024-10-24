@@ -3,38 +3,76 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Role Assignment</title>
+    <title>役割振り分け</title>
 </head>
 <body>
     <h1>役割振り分け</h1>
     <form id="roleForm">
-        <label for="names">名前（改行で分けて入力）:</label>
-        <br>
+        <p>名前を改行して入力</p>
         <p>ロール決まってる人は名前消してチェックも外して</p>
-        <p>振り分け押したら勝手にコピーされるよ</p>
+        <p>振り分け押したら勝手にコピーされる</p>
         <textarea id="names" name="names" rows="5" cols="30" required></textarea>
         <br><br>
         <label><input type="checkbox" id="top" name="role" value="Top" checked> Top</label>
         <label><input type="checkbox" id="jg" name="role" value="Jungle" checked> Jungle</label>
         <label><input type="checkbox" id="mid" name="role" value="Mid" checked> Mid</label>
-        <label><input type="checkbox" id="ad" name="role" value="AD Carry" checked> AD Carry</label>
+        <label><input type="checkbox" id="ad" name="role" value="Adc" checked> Adc</label>
         <label><input type="checkbox" id="sup" name="role" value="Support" checked> Support</label>
+        <br><br>
+        <label><input type="checkbox" id="useChampion" name="useChampion"> チャンピオンを選ぶ</label>
+        <br><br>
+        <label for="winrate">勝率:</label>
+        <input type="number" id="winrate" name="winrate" value="49" min="0" max="100" step="0.5">
+        <label for="pickrate">ピック率:</label>
+        <input type="number" id="pickrate" name="pickrate" value="5" min="0" max="100" step="0.5">
         <br><br>
         <button type="button" onclick="assignRole()">振り分け</button>
     </form>
     <pre id="result"></pre>
 
     <script>
-         document.addEventListener('DOMContentLoaded', (event) => {
-            // ページ読み込み時にローカルストレージから名前を取得
+        document.addEventListener('DOMContentLoaded', (event) => {
             const savedNames = localStorage.getItem('names');
             if (savedNames) {
                 document.getElementById('names').value = savedNames;
             }
         });
-        function assignRole() {
+
+        async function getRandomPicks(apiUrl, winrate, pickrate) {
+            try {
+                const response = await fetch(apiUrl);
+                if (response.ok) {
+                    const responseData = await response.json();
+                    const data = JSON.parse(responseData.body);
+                    const picks = {};
+
+                    // 各ロールのデータをフィルタリングしてランダムに選択
+                    ['top', 'jungle', 'mid', 'adc', 'support'].forEach(role => {
+                        const roleData = data.find(item => item.role === role)?.json || [];
+                        console.log(roleData);
+                        const filteredData = roleData.filter(item => item.winrate >= winrate && item.pickrate >= pickrate).map(item => item.name);
+                        console.log(filteredData);
+                        picks[role] = filteredData.length > 0 ? filteredData[Math.floor(Math.random() * filteredData.length)] : 'No suitable pick';
+                        console.log(picks[role]);
+                    });
+
+                    return picks;
+                } else {
+                    console.log(`Failed to get data from API. Status code: ${response.status}`);
+                    return null;
+                }
+            } catch (error) {
+                console.log(`Error fetching data: ${error}`);
+                return null;
+            }
+        }
+
+        async function assignRole() {
             const names = document.getElementById('names').value.split('\n').filter(name => name.trim() !== '');
             const roles = Array.from(document.querySelectorAll('input[name="role"]:checked')).map(role => role.value);
+            const useChampion = document.getElementById('useChampion').checked;
+            const winrate = parseFloat(document.getElementById('winrate').value);
+            const pickrate = parseFloat(document.getElementById('pickrate').value);
             let resultText = '';
 
             if (names.length > roles.length) {
@@ -42,7 +80,6 @@
                 return;
             }
 
-            // シャッフル関数
             function shuffle(array) {
                 for (let i = array.length - 1; i > 0; i--) {
                     const j = Math.floor(Math.random() * (i + 1));
@@ -57,21 +94,36 @@
                 Top: '',
                 Jungle: '',
                 Mid: '',
-                'AD Carry': '',
+                Adc: '',
                 Support: ''
             };
 
-            names.forEach((name, index) => {
-                roleAssignment[roles[index]] = name;
-            });
+            if (useChampion) {
+                const apiUrl = 'https://6w8bafz67l.execute-api.ap-northeast-1.amazonaws.com/default/get_opgg';
+                const picks = await getRandomPicks(apiUrl, winrate, pickrate);
+                if (!picks) {
+                    document.getElementById('result').innerText = 'APIエラーが発生しました。';
+                    return;
+                }
 
-            resultText = `Top: ${roleAssignment.Top}\nJG: ${roleAssignment.Jungle}\nMID: ${roleAssignment.Mid}\nAD: ${roleAssignment['AD Carry']}\nSUP: ${roleAssignment.Support}`;
+                for (let i = 0; i < names.length; i++) {
+                    const role = roles[i].toLowerCase();
+                    const playerName = names[i];
+                    roleAssignment[roles[i]] = `${playerName} ${picks[role]}`;
+                }
+            } else {
+                for (let i = 0; i < names.length; i++) {
+                    const role = roles[i];
+                    const playerName = names[i];
+                    roleAssignment[role] = playerName;
+                }
+            }
+
+            resultText = `Top: ${roleAssignment.Top}\nJG: ${roleAssignment.Jungle}\nMID: ${roleAssignment.Mid}\nADC: ${roleAssignment.Adc}\nSUP: ${roleAssignment.Support}`;
 
             document.getElementById('result').innerText = resultText;
 
-            // 出力を自動でコピー
-            navigator.clipboard.writeText(resultText)
-            // 名前をローカルストレージに保存
+            navigator.clipboard.writeText(resultText);
             localStorage.setItem('names', document.getElementById('names').value);
         }
     </script>
