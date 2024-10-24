@@ -49,11 +49,9 @@
                     // 各ロールのデータをフィルタリングしてランダムに選択
                     ['top', 'jungle', 'mid', 'adc', 'support'].forEach(role => {
                         const roleData = data.find(item => item.role === role)?.json || [];
-                        console.log(roleData);
                         const filteredData = roleData.filter(item => item.winrate >= winrate && item.pickrate >= pickrate).map(item => item.name);
                         console.log(filteredData);
                         picks[role] = filteredData.length > 0 ? filteredData[Math.floor(Math.random() * filteredData.length)] : 'No suitable pick';
-                        console.log(picks[role]);
                     });
 
                     return picks;
