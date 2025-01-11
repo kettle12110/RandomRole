@@ -20,7 +20,6 @@
         <label><input type="checkbox" id="sup" name="role" value="Support" checked> Support</label>
         <br><br>
         <label><input type="checkbox" id="useChampion" name="useChampion"> チャンピオンを選ぶ</label>
-        <label><input type="checkbox" id="kr" name="region" value="kr"> KR</label>
         <br><br>
         <label for="winrate">勝率:</label>
         <input type="number" id="winrate" name="winrate" value="49" min="0" max="100" step="0.5">
@@ -40,7 +39,7 @@
             }
         });
 
-        async function getRandomPicks(apiUrl, winrate, pickrate, isKR) {
+        async function getRandomPicks(apiUrl, winrate, pickrate) {
             try {
                 const response = await fetch(apiUrl);
                 if (response.ok) {
@@ -49,12 +48,12 @@
                     const picks = {};
 
                     // 各ロールのデータをフィルタリングしてランダムに選択
-                    const roles = isKR ? ['krtop', 'krjungle', 'krmid', 'kradc', 'krsupport'] : ['top', 'jungle', 'mid', 'adc', 'support'];
+                    const roles = ['top', 'jungle', 'mid', 'adc', 'support'];
                     roles.forEach(role => {
                         const roleData = data.find(item => item.role === role)?.json || [];
-                        const filteredData = roleData.filter(item => item.winrate >= winrate && item.pickrate >= pickrate).map(item => item.name);
+                        const filteredData = roleData.filter(item => item.winrate >= winrate && item.pickrate >= pickrate).map(item => ({ name: item.name, winrate: item.winrate }));
                         console.log(filteredData);
-                        picks[role] = filteredData.length > 0 ? filteredData[Math.floor(Math.random() * filteredData.length)] : 'No suitable pick';
+                        picks[role] = filteredData.length > 0 ? filteredData[Math.floor(Math.random() * filteredData.length)] : { name: 'No suitable pick', winrate: 0 };
                     });
 
                     return picks;
@@ -72,7 +71,6 @@
             const names = document.getElementById('names').value.split('\n').filter(name => name.trim() !== '');
             const roles = Array.from(document.querySelectorAll('input[name="role"]:checked')).map(role => role.value);
             const useChampion = document.getElementById('useChampion').checked;
-            const isKR = document.getElementById('kr').checked;
             const winrate = parseFloat(document.getElementById('winrate').value);
             const pickrate = parseFloat(document.getElementById('pickrate').value);
             let resultText = '';
@@ -97,21 +95,20 @@
 
             if (useChampion) {
                 const apiUrl = 'https://6w8bafz67l.execute-api.ap-northeast-1.amazonaws.com/default/get_opgg';
-                const picks = await getRandomPicks(apiUrl, winrate, pickrate, isKR);
+                const picks = await getRandomPicks(apiUrl, winrate, pickrate);
                 if (!picks) {
                     document.getElementById('result').innerText = 'APIエラーが発生しました。';
                     return;
                 }
 
                 roles.forEach(role => {
-                    const roleLower = isKR ? 'kr' + role.toLowerCase() : role.toLowerCase();
-                    roleAssignment[role] = picks[roleLower];
+                    roleAssignment[role] = `${picks[role.toLowerCase()].name} (勝率: ${picks[role.toLowerCase()].winrate}%)`;
                 });
 
                 for (let i = 0; i < names.length; i++) {
                     const role = roles[i];
                     const playerName = names[i];
-                    roleAssignment[role] = `${playerName} ${picks[isKR ? 'kr' + role.toLowerCase() : role.toLowerCase()]}`;
+                    roleAssignment[role] = `${playerName} ${picks[role.toLowerCase()].name} (勝率: ${picks[role.toLowerCase()].winrate}%)`;
                 }
             } else {
                 for (let i = 0; i < names.length; i++) {
