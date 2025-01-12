@@ -4,13 +4,84 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>役割振り分け</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            margin-left: 20px;
+            margin-right: 20px;
+        }
+        form {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 10px;
+        }
+        input[type="checkbox"] {
+            margin-right: 10px;
+            accent-color: #007BFF; /* チェックボックスのON時の色を青色に設定 */
+        }
+        input[type="number"] {
+            width: 60px;
+            padding: 5px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            margin-right: 10px;
+        }
+        input[type="text"] {
+            max-width: 300px;
+        }
+        button {
+            background-color: #007BFF; /* 振り分けボタンの色を青色に設定 */
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #0056b3; /* 振り分けボタンのホバー時の色を変更 */
+        }
+        .divider {
+            border-top: 1px solid #ccc;
+            margin: 20px 0;
+        }
+        .champion-options {
+            margin-bottom: 10px;
+        }
+        #result {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            margin: 20px auto;
+            white-space: pre-wrap;
+        }
+    </style>
 </head>
 <body>
-    <h1>役割振り分け</h1>
     <form id="roleForm">
-        <p>名前を改行して入力</p>
-        <p>ロール決まってる人は名前消してチェックも外して</p>
-        <p>振り分け押したら勝手にコピーされる</p>
+        <p>名前を改行して入力してください</p>
+        <p>ロールが決まっている人は名前を消してチェックを外してください</p>
+        <p>振り分けボタンを押すと自動的にコピーされます</p>
         <textarea id="names" name="names" rows="5" cols="30"></textarea>
         <br><br>
         <label><input type="checkbox" id="top" name="role" value="Top" checked> Top</label>
@@ -19,13 +90,15 @@
         <label><input type="checkbox" id="ad" name="role" value="Adc" checked> Adc</label>
         <label><input type="checkbox" id="sup" name="role" value="Support" checked> Support</label>
         <br><br>
+        <div class="divider"></div>
         <label><input type="checkbox" id="useChampion" name="useChampion"> チャンピオンを選ぶ</label>
-        <br><br>
-        <label for="winrate">勝率:</label>
-        <input type="number" id="winrate" name="winrate" value="49" min="0" max="100" step="0.5">
-        <label for="pickrate">ピック率:</label>
-        <input type="number" id="pickrate" name="pickrate" value="5" min="0" max="100" step="0.5">
-        <label>以上でしぼりこむ</label>
+        <div id="championOptions" class="champion-options">
+            <label for="winrate">勝率:</label>
+            <input type="number" id="winrate" name="winrate" value="49" min="0" max="100" step="0.5">
+            <label for="pickrate">ピック率:</label>
+            <input type="number" id="pickrate" name="pickrate" value="5" min="0" max="100" step="0.5">
+            <label>以上で絞り込む</label>
+        </div>
         <br><br>
         <button type="button" onclick="assignRole()">振り分け</button>
     </form>
@@ -37,6 +110,17 @@
             if (savedNames) {
                 document.getElementById('names').value = savedNames;
             }
+
+            const championOptions = document.getElementById('championOptions');
+            championOptions.style.display = 'none';
+
+            document.getElementById('useChampion').addEventListener('change', (event) => {
+                if (event.target.checked) {
+                    championOptions.style.display = 'block';
+                } else {
+                    championOptions.style.display = 'none';
+                }
+            });
         });
 
         async function getRandomPicks(apiUrl, winrate, pickrate) {
@@ -47,7 +131,6 @@
                     const data = JSON.parse(responseData.body);
                     const picks = {};
 
-                    // 各ロールのデータをフィルタリングしてランダムに選択
                     const roles = ['top', 'jungle', 'mid', 'adc', 'support'];
                     roles.forEach(role => {
                         const roleData = data.find(item => item.role === role)?.json || [];
