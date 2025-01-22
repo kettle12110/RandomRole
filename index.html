@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>役割振り分け</title>
     <style>
+        /* ページ全体のスタイル設定 */
         body {
             font-family: Arial, sans-serif;
             background-color: #f4f4f9;
@@ -14,6 +15,7 @@
             margin-left: 20px;
             margin-right: 20px;
         }
+        /* フォームのスタイル設定 */
         form {
             background: #fff;
             padding: 20px;
@@ -21,6 +23,7 @@
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
             margin: 0 auto;
         }
+        /* テキストエリアのスタイル設定 */
         textarea {
             width: 100%;
             padding: 10px;
@@ -28,14 +31,17 @@
             border: 1px solid #ccc;
             margin-bottom: 20px;
         }
+        /* ラベルのスタイル設定 */
         label {
             display: block;
             margin-bottom: 10px;
         }
+        /* チェックボックスのスタイル設定 */
         input[type="checkbox"] {
             margin-right: 10px;
             accent-color: #007BFF; /* チェックボックスのON時の色を青色に設定 */
         }
+        /* 数値入力フィールドのスタイル設定 */
         input[type="number"] {
             width: 60px;
             padding: 5px;
@@ -43,12 +49,14 @@
             border: 1px solid #ccc;
             margin-right: 10px;
         }
+        /* テキスト入力フィールドのスタイル設定 */
         input[type="text"] {
             width: calc(100% - 20px); /* 入力ボックスの幅を調整 */
             padding: 10px; /* 内側の余白を追加 */
             margin-right: 10px; /* 右側の余白を追加 */
             box-sizing: border-box; /* ボックスのサイズを調整 */
         }
+        /* ボタンのスタイル設定 */
         button {
             background-color: #007BFF; /* 振り分けボタンの色を青色に設定 */
             color: white;
@@ -61,14 +69,17 @@
         button:hover {
             background-color: #0056b3; /* 振り分けボタンのホバー時の色を変更 */
         }
+        /* 区切り線のスタイル設定 */
         .divider {
             border-top: 1px solid #ccc;
             margin-top: 20px 0;
             margin-bottom: 20px;
         }
+        /* チャンピオンオプションのスタイル設定 */
         .champion-options {
             margin-bottom: 10px;
         }
+        /* 結果表示エリアのスタイル設定 */
         #result {
             background: #fff;
             padding: 20px;
@@ -86,6 +97,7 @@
         <p>振り分けボタンを押すと自動的にコピーされます</p>
         <textarea id="names" name="names" rows="5" cols="30"></textarea>
         <br><br>
+        <!-- ロール選択チェックボックス -->
         <label><input type="checkbox" id="top" name="role" value="Top" checked> Top</label>
         <label><input type="checkbox" id="jg" name="role" value="Jungle" checked> Jungle</label>
         <label><input type="checkbox" id="mid" name="role" value="Mid" checked> Mid</label>
@@ -93,6 +105,7 @@
         <label><input type="checkbox" id="sup" name="role" value="Support" checked> Support</label>
         <br><br>
         <div class="divider"></div>
+        <!-- チャンピオン選択オプション -->
         <label><input type="checkbox" id="useChampion" name="useChampion"> チャンピオンを選ぶ</label>
         <div id="championOptions" class="champion-options">
             <label for="winrate">勝率:</label>
@@ -102,20 +115,24 @@
             <label>以上で絞りこむ</label>
         </div>
         <br><br>
+        <!-- 振り分けボタン -->
         <button type="button" onclick="assignRole()">振り分け</button>
     </form>
     <pre id="result"></pre>
 
     <script>
         document.addEventListener('DOMContentLoaded', (event) => {
+            // ローカルストレージから保存された名前を取得してフォームに設定
             const savedNames = localStorage.getItem('names');
             if (savedNames) {
                 document.getElementById('names').value = savedNames;
             }
 
+            // チャンピオンオプションの初期表示を非表示に設定
             const championOptions = document.getElementById('championOptions');
             championOptions.style.display = 'none';
 
+            // チャンピオン選択オプションの表示切替
             document.getElementById('useChampion').addEventListener('change', (event) => {
                 if (event.target.checked) {
                     championOptions.style.display = 'block';
@@ -125,33 +142,54 @@
             });
         });
 
+        // 勝率またはピック率が変更された場合にセッションストレージをクリア
+        document.getElementById('winrate').addEventListener('change', function() {
+            sessionStorage.clear();
+        });
+
+        document.getElementById('pickrate').addEventListener('change', function() {
+            sessionStorage.clear();
+        });
+
+        // APIからランダムにチャンピオンを取得する関数
         async function getRandomPicks(apiUrl, winrate, pickrate) {
-            try {
-                const response = await fetch(apiUrl);
-                if (response.ok) {
-                    const responseData = await response.json();
-                    const data = JSON.parse(responseData.body);
-                    const picks = {};
+            let responseData;
 
-                    const roles = ['top', 'jungle', 'mid', 'adc', 'support'];
-                    roles.forEach(role => {
-                        const roleData = data.find(item => item.role === role)?.json || [];
-                        const filteredData = roleData.filter(item => item.winrate >= winrate && item.pickrate >= pickrate).map(item => ({ name: item.name, winrate: item.winrate }));
-                        console.log(filteredData);
-                        picks[role] = filteredData.length > 0 ? filteredData[Math.floor(Math.random() * filteredData.length)] : { name: 'No suitable pick', winrate: 0 };
-                    });
-
-                    return picks;
-                } else {
-                    console.log(`Failed to get data from API. Status code: ${response.status}`);
+            // sessionStorage に保存されたデータがあるか確認
+            const storedData = sessionStorage.getItem('responseData');
+            if (storedData) {
+                responseData = JSON.parse(storedData);
+            } else {
+                // データがない場合は新しいデータを取得して保存
+                try {
+                    const response = await fetch(apiUrl);
+                    if (response.ok) {
+                        const data = await response.json();
+                        responseData = JSON.parse(data.body);
+                        sessionStorage.setItem('responseData', JSON.stringify(responseData));
+                    } else {
+                        console.log(`Failed to get data from API. Status code: ${response.status}`);
+                        return null;
+                    }
+                } catch (error) {
+                    console.log(`Error fetching data: ${error}`);
                     return null;
                 }
-            } catch (error) {
-                console.log(`Error fetching data: ${error}`);
-                return null;
             }
+
+            const picks = {};
+            const roles = ['top', 'jungle', 'mid', 'adc', 'support'];
+            roles.forEach(role => {
+                const roleData = responseData.find(item => item.role === role)?.json || [];
+                const filteredData = roleData.filter(item => parseFloat(item.winrate) >= winrate && parseFloat(item.pickrate) >= pickrate).map(item => ({ name: item.name, winrate: item.winrate }));
+                console.log(filteredData);
+                picks[role] = filteredData.length > 0 ? filteredData[Math.floor(Math.random() * filteredData.length)] : { name: 'No suitable pick', winrate: 0 };
+            });
+
+            return picks;
         }
 
+        // 役割を振り分ける関数
         async function assignRole() {
             const names = document.getElementById('names').value.split('\n').filter(name => name.trim() !== '');
             const roles = Array.from(document.querySelectorAll('input[name="role"]:checked')).map(role => role.value);
@@ -160,6 +198,7 @@
             const pickrate = parseFloat(document.getElementById('pickrate').value);
             let resultText = '';
 
+            // 配列をシャッフルする関数
             function shuffle(array) {
                 for (let i = array.length - 1; i > 0; i--) {
                     const j = Math.floor(Math.random() * (i + 1));
@@ -205,8 +244,8 @@
 
             resultText = `Top: ${roleAssignment.Top}\nJG: ${roleAssignment.Jungle}\nMID: ${roleAssignment.Mid}\nADC: ${roleAssignment.Adc}\nSUP: ${roleAssignment.Support}`;
 
+            // 結果を表示し、クリップボードにコピーし、ローカルストレージに名前を保存
             document.getElementById('result').innerText = resultText;
-
             navigator.clipboard.writeText(resultText);
             localStorage.setItem('names', document.getElementById('names').value);
         }
